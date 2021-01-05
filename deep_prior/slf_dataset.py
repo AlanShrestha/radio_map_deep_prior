@@ -8,6 +8,44 @@ import random
 from params import std, mean
 import time
 
+DEFAULT_ROOT = '/scratch/sagar/slf/train_set/set_harsh_torch_raw_unnormalized/slf_mat'
+
+class SLF(Dataset):
+    def __init__(self, root=DEFAULT_ROOT, train=True, download=True, transform=None, total_data=None, sampling=False, normalize=True):
+        self.root_dir = root
+        if not total_data is None:
+            self.num_examples = total_data
+        else:
+            if train == True:
+                self.num_examples = 500000
+            else:
+                self.num_examples = 2000
+        self.sampling = sampling
+        sample_size = [0.01,0.30]
+        self.sampling_rate = sample_size[1] - sample_size[0]
+        self.omega_start_point = 1.0 - sample_size[1]
+        self.normalize = normalize
+        
+    def __len__(self):
+        return self.num_examples
+
+    def __getitem__(self, idx):
+        filename = os.path.join(self.root_dir,
+                                str(idx)+'.pt')
+        sample = torch.load(filename)
+        if self.sampling:
+            rand = self.sampling_rate*torch.rand(1).item()
+            bool_mask = torch.FloatTensor(1,51,51).uniform_() > (self.omega_start_point+rand)
+            int_mask = bool_mask*torch.ones((1,51,51), dtype=torch.float32)
+            subsample = sample*bool_mask
+            return subsample, sample
+        
+        if self.normalize:
+            sample = np.log(sample)
+            sample = sample/sample.min()
+        return sample
+
+
 class SLFDataset(Dataset):
     """SLF loader"""
 

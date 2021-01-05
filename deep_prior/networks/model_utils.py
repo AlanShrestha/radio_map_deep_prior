@@ -227,7 +227,6 @@ def create_discriminator(z_dim):
         nn.Sigmoid()
         )
 
-
 def create_output_layer(architecture, input_shape):
     """
     :param dict architecture:  A dictionary containing the hyperparameters that define the
