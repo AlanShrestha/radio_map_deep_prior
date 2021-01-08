@@ -5,4 +5,6 @@ deep_prior/trained-models/
 **.ipynb_checkpoints/
 psd_recovery/data/
 .vscode/
+deep_prior/log/
 deep_prior/lightning_logs/
+deep_prior/drive/

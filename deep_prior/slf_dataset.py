@@ -7,19 +7,24 @@ import numpy as np
 import random
 from params import std, mean
 import time
+import matplotlib.pyplot as plt
 
-DEFAULT_ROOT = '/scratch/sagar/slf/train_set/set_harsh_torch_raw_unnormalized/slf_mat'
+DEFAULT_ROOT = '/scratch/sagar/slf/train_set/2m_data/slf_mat'
 
 class SLF(Dataset):
-    def __init__(self, root=DEFAULT_ROOT, train=True, download=True, transform=None, total_data=None, sampling=False, normalize=True):
+    def __init__(self, root=DEFAULT_ROOT, train=True, download=True, transform=None, total_data=None, sampling=False, normalize=False):
         self.root_dir = root
+        self.train = train
+        self.test_id = 0
         if not total_data is None:
             self.num_examples = total_data
         else:
             if train == True:
-                self.num_examples = 500000
+                self.num_examples = 1900000
             else:
                 self.num_examples = 2000
+                self.test_id = 1900000
+        
         self.sampling = sampling
         sample_size = [0.01,0.30]
         self.sampling_rate = sample_size[1] - sample_size[0]
@@ -30,8 +35,11 @@ class SLF(Dataset):
         return self.num_examples
 
     def __getitem__(self, idx):
-        filename = os.path.join(self.root_dir,
-                                str(idx)+'.pt')
+        if self.train:
+            filename = os.path.join(self.root_dir, str(idx)+'.pt')
+        else:
+            filename = os.path.join(self.root_dir, str(self.test_id + idx)+'.pt')
+            
         sample = torch.load(filename)
         if self.sampling:
             rand = self.sampling_rate*torch.rand(1).item()
@@ -44,6 +52,59 @@ class SLF(Dataset):
             sample = np.log(sample)
             sample = sample/sample.min()
         return sample
+    
+def plot_image(train_set, index, log=False):
+    a = train_set[index]
+    if not log:
+        plt.imshow(a.detach().squeeze().numpy())
+    else:
+        plt.imshow(np.log(a.detach().squeeze().numpy()))
+        
+
+def plot_image_output(image, log=False):
+    if log:
+        plt.imshow(np.log(image.detach().squeeze().numpy()))
+    else:
+        plt.imshow(image.detach().squeeze().numpy())
+
+class GANSample(Dataset):
+    def __init__(self, generator_path = 'trained-models/gan/generator-gan-first',train=True, download=True, transform=None, total_data=None, sampling=False):
+        self.generator = torch.load(generator_path)
+        self.generator.eval()
+        self.generator = self.generator.to('cpu')
+        self.z_dim = next(self.generator.parameters()).shape[1]
+        if not total_data is None:
+            self.num_examples = total_data
+        else:
+            if train == True:
+                self.num_examples = 50000
+            else:
+                self.num_examples = 2000
+        
+        self.sampling = sampling
+        sample_size = [0.01,0.30]
+        self.sampling_rate = sample_size[1] - sample_size[0]
+        self.omega_start_point = 1.0 - sample_size[1]
+        
+    def __len__(self):
+        return self.num_examples
+
+    def __getitem__(self, idx):
+        z = torch.randn((1,self.z_dim), dtype=torch.float32)
+        with torch.no_grad():
+            sample = self.generator(z)
+        z = z.squeeze()
+        sample = sample.squeeze(dim=0)
+        if self.sampling:
+            rand = self.sampling_rate*torch.rand(1).item()
+            bool_mask = torch.FloatTensor(1,51,51).uniform_() > (self.omega_start_point+rand)
+            int_mask = bool_mask*torch.ones((1,51,51), dtype=torch.float32)
+            subsample = sample*bool_mask
+            subsample.requires_grad = False
+            z.requires_grad = False
+            return subsample, z
+        else:
+            return sample, z
 
 
 class SLFDataset(Dataset):

@@ -363,9 +363,9 @@ class VAE(pl.LightningModule):
         epsilon is added inside the logarithm to make sure that we don't get log(0).
         """
         # compute the data fidelity for every training example
-        # data_fidelity = torch.sum(X * torch.log(eps + X_hat) + (1 - X) * torch.log(eps + 1 - X_hat),
-                                #   axis=[1, 2, 3])
-        data_fidelity = -100*VAE._mse_loss(X, X_hat)
+        data_fidelity = torch.sum(X * torch.log(eps + X_hat) + (1 - X) * torch.log(eps + 1 - X_hat),
+                                  axis=[1, 2, 3])
+        # data_fidelity = -100*VAE._mse_loss(X, X_hat)
         
         return data_fidelity
 
