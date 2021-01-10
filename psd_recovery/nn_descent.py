@@ -5,6 +5,7 @@ import torch
 import numpy as np
 import scipy.io
 import torch.nn as nn
+from networks.gan import Generator
 
 dec = Decoder()
 lr = 0.01
@@ -14,6 +15,13 @@ PATH1 = '/home/sagar/Projects/deep_completion/deep_slf/trained-models/l1_5_unnor
 checkpoint = torch.load(PATH1, map_location=torch.device('cpu'))
 slf_network.load_state_dict(checkpoint['model_state_dict'])
 criterion = nn.MSELoss()
+
+generator = Generator()
+GAN_PATH = '/home/sagar/Projects/radio_map_deep_prior/deep_prior/trained-models/gan/sngan2'
+checkpoint = torch.load(GAN_PATH, map_location=torch.device('cpu'))
+generator.load_state_dict(checkpoint['g_model_state_dict'])
+gan_criterion = nn.L1Loss()
+
 
 def outer(mat, vec):
     prod = torch.zeros(( *vec.shape,*mat.shape), dtype=torch.float32)
@@ -26,6 +34,7 @@ def get_tensor(S, C):
     for i in range(C.shape[0]):
         prod += outer(S[i,:,:], C[i,:])
     return prod
+
 
 def run_descent(W, X, z, C, R):
     """
@@ -63,6 +72,80 @@ def run_descent(W, X, z, C, R):
     test_slf = torch.cat((Wr, z), dim=1)
     test_slf.requires_grad = True
     
+    for i in range(loop_count):
+        slf_complete = slf_network(test_slf)
+        # slf_complete = slf_complete.view(R,51,51)
+        # reconstruct the map from slf 
+        # first normalize slf
+        # slf_complete_norm = torch.zeros((slf_complete.shape))
+        # for rr in range(R):
+        #     slf_complete[rr] = slf_complete[rr]/(slf_complete[rr].norm())
+        X_from_slf = get_tensor(slf_complete[:,0,:,:], C)
+        
+        loss = criterion(Wx*X, Wx*X_from_slf)
+        # print(loss)
+        loss.backward()
+        with torch.no_grad():
+            test_slf -= lr*test_slf.grad
+    slf_opt = test_slf[:,1,:,:]
+    slf_opt = slf_opt.permute(1,2,0)
+    slf_opt = slf_opt.detach().numpy()
+
+    return slf_opt.copy()
+
+
+def run_descent_gan(W, X, z, C, R):
+    """
+    Arguments:
+        W : Mask 
+        X : sampled tensor
+        z : current latent vectors estimate for R emitters
+        C : current psd estimate
+
+    Returns:
+        the updated latent vector estimate
+    """
+    # Prepare data
+    W = torch.from_numpy(W).type(torch.float32)
+    X = torch.from_numpy(X).type(torch.float32)
+    z = torch.from_numpy(z).type(torch.float32)
+    C = torch.from_numpy(C).type(torch.float32)
+    R = int(R)
+
+    K = X.shape[2]
+
+    X = X.permute(2,0,1)
+    z = z.permute(2,0,1)
+    z = z.unsqueeze(dim=1)
+    C = C.permute(1,0)
+    W = W.unsqueeze(dim=0)
+    W = W.unsqueeze(dim=0)
+    Wr = W.repeat(R,1,1,1)
+    Wx = W.repeat(K,1,1,1)
+
+    Wr[Wr<0.5] = 0
+    Wr[Wr>=0.5] = 1
+
+    z = torch.randn((R,64), dtype=torch.float32)
+    
+    # First select a good random vector
+    min_criterion = 9999999
+    
+    for i in range(500):
+        temp = torch.randn((1,64), dtype=torch.float32)
+        temp_out = generator(temp)
+        X_from_slf = get_tensor(temp_out[:,0,:,:], C)
+        temp_criterion = criterion(Wx*X, Wx*X_from_slf)
+        if  temp_criterion < min_criterion:
+            z.data = temp.clone()
+            min_criterion = temp_criterion
+            
+    z.requires_grad = True
+    optimizer = torch.optim.Adam([z], lr=0.01) 
+    
+    test_slf = torch.cat((Wr, z), dim=1)
+    test_slf.requires_grad = True
+       
     for i in range(loop_count):
         slf_complete = slf_network(test_slf)
         # slf_complete = slf_complete.view(R,51,51)

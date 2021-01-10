@@ -23,11 +23,13 @@ class Generator(nn.Module):
         super().__init__()
         ndf = 16
         self.main = nn.Sequential(
-            nn.Linear(z_dim,64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(True),
+            # nn.Linear(z_dim,64),
+            # nn.BatchNorm1d(64),
+            # nn.ReLU(True),
             
             nn.Linear(64, 128),
+            nn.ReLU(True),
+            
             UnFlatten((ndf*8, 1, 1)),
             # state size. (ndf*8) x 1 x 1
             nn.ConvTranspose2d(ndf*8, ndf*8, 3, 1, 0),
