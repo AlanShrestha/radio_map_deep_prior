@@ -74,7 +74,7 @@ for run in RunBuilder.get_runs(params):
 
     
 
-    for epoch in range(saved_epoch,50):
+    for epoch in range(saved_epoch, 250):
 
         total_adv_loss = 0
  
@@ -88,8 +88,10 @@ for run in RunBuilder.get_runs(params):
         total_G_loss = 0
         
         num_batches = len(train_set)/run.batch_size
-        
+        i=0
         for batch in tqdm(loader):
+            i+=1
+
             # Get data
             real_slf = batch
             real_slf = real_slf.to(run.device)
@@ -98,15 +100,18 @@ for run in RunBuilder.get_runs(params):
             labels_real = torch.full((b_size,1,1,1), real_label, device=run.device, dtype=torch.float32)
             labels_fake = torch.full((b_size,1,1,1), fake_label, device=run.device, dtype=torch.float32)
             
-            # Update Generator
-            optimizerGenerator.zero_grad()
             sample_z = torch.randn((b_size, z_dim), dtype=torch.float32)
             sample_z = sample_z.to(run.device)
-            fake_slf = generator(sample_z)
-            fake_pred = discriminator(fake_slf)
-            gen_loss = criterion(fake_pred, labels_real)
-            gen_loss.backward()
-            optimizerGenerator.step()
+            
+            # Update Generator
+            if i%2 != 0:
+                optimizerGenerator.zero_grad()
+                
+                fake_slf = generator(sample_z)
+                fake_pred = discriminator(fake_slf)
+                gen_loss = criterion(fake_pred, labels_real)
+                gen_loss.backward()
+                optimizerGenerator.step()
             
             # Update Discriminator
             optimizerDiscriminator.zero_grad()
