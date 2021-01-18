@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 DEFAULT_ROOT = '/scratch/sagar/slf/train_set/2m_data/slf_mat'
 
 class SLF(Dataset):
-    def __init__(self, root=DEFAULT_ROOT, train=True, download=True, transform=None, total_data=None, sampling=False, normalize=False):
+    def __init__(self, root=DEFAULT_ROOT, train=True, download=True, transform=None, total_data=None, sampling=False, normalize=False, fixed_size=None):
         self.root_dir = root
         self.train = train
         self.test_id = 0
@@ -26,9 +26,13 @@ class SLF(Dataset):
                 self.test_id = 1900000
         
         self.sampling = sampling
-        sample_size = [0.01,0.30]
-        self.sampling_rate = sample_size[1] - sample_size[0]
-        self.omega_start_point = 1.0 - sample_size[1]
+        if fixed_size is not None:
+            self.sampling_rate = 0
+            sample_width = [fixed_size, fixed_size]
+        else:
+            sample_width = [0.01,0.30]
+            self.sampling_rate = sample_width[1] - sample_width[0]
+        self.omega_start_point = 1.0 - sample_width[1]
         self.normalize = normalize
         
     def __len__(self):
@@ -41,16 +45,19 @@ class SLF(Dataset):
             filename = os.path.join(self.root_dir, str(self.test_id + idx)+'.pt')
             
         sample = torch.load(filename)
+        
+        if self.normalize:
+            sample = np.log(sample)
+            sample = sample/sample.min()
+        
         if self.sampling:
             rand = self.sampling_rate*torch.rand(1).item()
             bool_mask = torch.FloatTensor(1,51,51).uniform_() > (self.omega_start_point+rand)
             int_mask = bool_mask*torch.ones((1,51,51), dtype=torch.float32)
             subsample = sample*bool_mask
+            subsample = torch.cat((int_mask,subsample), dim=0)
             return subsample, sample
         
-        if self.normalize:
-            sample = np.log(sample)
-            sample = sample/sample.min()
         return sample
     
 def plot_image(train_set, index, log=False):

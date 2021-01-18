@@ -11,12 +11,21 @@ criterion = nn.L1Loss()
 
 slf_network = EncoderDecoder()
 PATH1 = '/home/sagar/Projects/deep_completion/deep_slf/trained-models/l1_5_unnorm_raw_rand_samp.model'
-checkpoint = torch.load(PATH1, map_location=torch.device('cpu'))
+PATH1_SERVER = '/nfs/stak/users/shressag/sagar/deep_completion/deep_slf/models/full_data_models/l1_5_unnorm_raw_rand_samp.model'
+try:
+    checkpoint = torch.load(PATH1, map_location=torch.device('cpu'))
+except:
+    checkpoint = torch.load(PATH1_SERVER, map_location=torch.device('cpu'))
 slf_network.load_state_dict(checkpoint['model_state_dict'])
 
 slf_network_log = EncoderDecoder()
 PATH2 = '/home/sagar/Projects/radio_map_deep_prior/deep_prior/trained-models/ae/mse2_ed_rand_samp.model'
-checkpoint = torch.load(PATH2, map_location=torch.device('cpu'))
+PATH2_SERVER = '/nfs/stak/users/shressag/sagar/deep_completion/deep_slf/models/full_data_models/mse2_ed_rand_samp.model'
+try:
+    checkpoint = torch.load(PATH2, map_location=torch.device('cpu'))
+except:
+    checkpoint = torch.load(PATH2_SERVER, map_location=torch.device('cpu'))
+    
 slf_network_log.load_state_dict(checkpoint['model_state_dict'])
 
 

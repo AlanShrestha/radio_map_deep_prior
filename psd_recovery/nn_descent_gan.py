@@ -10,7 +10,12 @@ criterion = nn.L1Loss()
 
 generator = Generator256()
 GAN_PATH = '/home/sagar/Projects/radio_map_deep_prior/deep_prior/trained-models/gan/sngan7_256'
-checkpoint = torch.load(GAN_PATH, map_location=torch.device('cpu'))
+GAN_PATH_SERVER = '/scratch/sagar/Projects/radio_map_deep_prior/deep_prior/trained-models/gan/sngan7_256'
+try:
+    checkpoint = torch.load(GAN_PATH, map_location=torch.device('cpu'))
+except:
+    checkpoint = torch.load(GAN_PATH_SERVER, map_location=torch.device('cpu'))
+    
 generator.load_state_dict(checkpoint['g_model_state_dict'])
 generator.eval()
 generator = generator.to('cpu')
