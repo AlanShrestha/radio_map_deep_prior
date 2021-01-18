@@ -8,3 +8,4 @@ psd_recovery/data/
 deep_prior/log/
 deep_prior/lightning_logs/
 deep_prior/drive/
+psd_recovery/data/
